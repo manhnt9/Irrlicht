@@ -33,8 +33,8 @@
 #endif
 
 #define VULKAN_HPP_NO_EXCEPTIONS
-#include <Vulkan/vulkan.h>
-#include <Vulkan/vulkan.hpp>
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
 
 #include "CCommonDefines.h"
 

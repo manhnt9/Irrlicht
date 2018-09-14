@@ -1841,7 +1841,7 @@ void COpenGLDriver::setRenderStates2DMode(bool alpha, bool texture, bool alphaCh
             setTransform(ETS_WORLD, m);
 
             // Set view to translate a little forward
-            //m.setTranslation(core::vector3df(-0.5f, -0.5f, 0)ü);
+            //m.setTranslation(core::vector3df(-0.5f, -0.5f, 0));
             setTransform(ETS_VIEW, getTransform(ETS_VIEW_2D));
 
             // Adjust projection
@@ -3063,10 +3063,10 @@ namespace irr
         // X11 VERSION
         // -----------------------------------
 #ifdef _IRR_COMPILE_WITH_X11_DEVICE_
+#ifdef _IRR_COMPILE_WITH_OPENGL_
         IVideoDriver* createOpenGLDriver(const SIrrlichtCreationParameters& params,
             io::IFileSystem* io, CIrrDeviceLinux* device)
         {
-#ifdef _IRR_COMPILE_WITH_OPENGL_
             COpenGLDriver* ogl = new COpenGLDriver(params, io, device);
             if (!ogl->initDriver(device))
             {
@@ -3074,10 +3074,8 @@ namespace irr
                 ogl = 0;
             }
             return ogl;
-#else
-            return 0;
-#endif //  _IRR_COMPILE_WITH_OPENGL_
         }
+#endif //  _IRR_COMPILE_WITH_OPENGL_
 #endif // _IRR_COMPILE_WITH_X11_DEVICE_
 
 
@@ -3085,15 +3083,13 @@ namespace irr
         // SDL VERSION
         // -----------------------------------
 #ifdef _IRR_COMPILE_WITH_SDL_DEVICE_
+#ifdef _IRR_COMPILE_WITH_OPENGL_
         IVideoDriver* createOpenGLDriver(const SIrrlichtCreationParameters& params,
             io::IFileSystem* io, CIrrDeviceSDL* device)
         {
-#ifdef _IRR_COMPILE_WITH_OPENGL_
             return new COpenGLDriver(params, io, device);
-#else
-            return 0;
-#endif //  _IRR_COMPILE_WITH_OPENGL_
         }
+#endif //  _IRR_COMPILE_WITH_OPENGL_
 #endif // _IRR_COMPILE_WITH_SDL_DEVICE_
     }
 }

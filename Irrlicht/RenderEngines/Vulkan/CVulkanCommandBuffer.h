@@ -4,11 +4,13 @@
 #include "CVulkanSharedDefines.h"
 #include "CVulkanEventQuery.h"
 #include "RenderEngines/General/CCommandBuffer.h"
+#include "RenderEngines/General/CCommonDefines.h"
 
 #include "SColor.h"
 
 #include <standard/enum.h>
 #include <unordered_set>
+#include <vulkan/vulkan.h>
 
 namespace irr
 {
@@ -32,7 +34,6 @@ namespace irr
         struct BufferInfo;
         struct ImageInfo;
         struct ImageSubresourceInfo;
-
         /** @addtogroup Vulkan
          *  @{
          */
@@ -56,9 +57,9 @@ namespace irr
             VkSemaphore mSemaphore;
 
             // Inherited via CVulkanDeviceResource
-            virtual void OnDeviceLost(CVulkanDriver * device) _IRR_OVERRIDE_;
-            virtual void OnDeviceRestored(CVulkanDriver * device) _IRR_OVERRIDE_;
-            virtual void OnDeviceDestroy(CVulkanDriver* device) _IRR_OVERRIDE_ {}
+            virtual void OnDeviceLost(irr::video::CVulkanDriver * device) _IRR_OVERRIDE_;
+            virtual void OnDeviceRestored(irr::video::CVulkanDriver * device) _IRR_OVERRIDE_;
+            virtual void OnDeviceDestroy(irr::video::CVulkanDriver* device) _IRR_OVERRIDE_ {}
         };
 
         class VulkanCmdBuffer;
@@ -67,7 +68,7 @@ namespace irr
         class VulkanCmdBufferPool
         {
         public:
-            VulkanCmdBufferPool(VulkanDevice& device);
+            VulkanCmdBufferPool(irr::video::VulkanDevice& device);
             ~VulkanCmdBufferPool();
 
             /**
@@ -75,7 +76,7 @@ namespace irr
              * queue family is valid.
              */
             VulkanCmdBuffer* getBuffer(uint32_t queueFamily, bool secondary);
-            const VulkanDevice* GetDevice() const { return &mDevice; }
+            const irr::video::VulkanDevice* GetDevice() const { return &mDevice; }
 
         private:
             /** Command buffer pool and related information. */
@@ -89,7 +90,7 @@ namespace irr
             /** Creates a new command buffer. */
             VulkanCmdBuffer* createBuffer(uint32_t queueFamily, bool secondary);
 
-            VulkanDevice& mDevice;
+            irr::video::VulkanDevice& mDevice;
             std::vector<PoolInfo> mPools;
             uint32_t mNextId;
         };
@@ -97,12 +98,12 @@ namespace irr
         /** Determines where are the current descriptor sets bound to. */
         enum class DescriptorSetBindFlag
         {
-            None = 0,
+            Null = 0,
             Graphics = 1 << 0,
             Compute = 1 << 1
         };
 
-        ENABLE_ENUM_CLASS_FLAG(DescriptorSetBindFlag)
+        ENABLE_ENUM_CLASS_FLAG(irr::video::DescriptorSetBindFlag)
 
         /** Specifies for what purpose is a resource being bound to a command buffer. */
         enum class ResourceUsage
@@ -134,7 +135,7 @@ namespace irr
             };
 
         public:
-            VulkanCmdBuffer(VulkanDevice& device, uint32_t id, VkCommandPool pool, uint32_t queueFamily, bool secondary);
+            VulkanCmdBuffer(irr::video::VulkanDevice& device, uint32_t id, VkCommandPool pool, uint32_t queueFamily, bool secondary);
             virtual ~VulkanCmdBuffer();
 
             /** Returns an unique identifier of this command buffer. */
@@ -163,12 +164,12 @@ namespace irr
              *
              * @param[in]	queue		Queue to submit the command buffer on.
              * @param[in]	queueIdx	Index of the queue the command buffer was submitted on. Note that this may be different
-             *							from the actual VulkanQueue index since multiple command buffer queue indices can map
+             *							from the actual irr::video::VulkanQueue index since multiple command buffer queue indices can map
              *							to the same queue.
              * @param[in]	syncMask	Mask that controls which other command buffers does this command buffer depend upon
              *							(if any). See description of @p syncMask parameter in RenderAPI::executeCommands().
              */
-            void submit(VulkanQueue* queue, uint32_t queueIdx, uint32_t syncMask);
+            void submit(irr::video::VulkanQueue* queue, uint32_t queueIdx, uint32_t syncMask);
 
             /** Returns the handle to the internal Vulkan command buffer wrapped by this object. */
             VkCommandBuffer getHandle() const { return mCmdBuffer; }
@@ -180,7 +181,7 @@ namespace irr
              * Returns a semaphore that may be used for synchronizing execution between command buffers executing on the same
              * queue.
              */
-            VulkanSemaphore* getIntraQueueSemaphore() const { return mIntraQueueSemaphore; }
+            irr::video::VulkanSemaphore* getIntraQueueSemaphore() const { return mIntraQueueSemaphore; }
 
             /**
              * Returns a semaphore that may be used for synchronizing execution between command buffers executing on different
@@ -188,7 +189,7 @@ namespace irr
              * available. If all are used up, null will be returned. New semaphores are generated when allocateSemaphores()
              * is called.
              */
-            VulkanSemaphore* requestInterQueueSemaphore() const;
+            irr::video::VulkanSemaphore* requestInterQueueSemaphore() const;
 
             /**
              * Allocates a new set of semaphores that may be used for synchronizing execution between different command buffers.
@@ -230,7 +231,7 @@ namespace irr
              * device when the command buffer is submitted. If a resource is an image or a buffer use the more specific
              * registerResource() overload.
              */
-            void registerResource(CVulkanDeviceResource* res, VulkanUseFlag flags);
+            void registerResource(irr::video::CVulkanDeviceResource* res, VulkanUseFlag flags);
 
             /**
              * Lets the command buffer know that the provided image resource has been queued on it, and will be used by the
@@ -247,33 +248,33 @@ namespace irr
              * @param[in]	flags					Flags that determine how will be command buffer be using the buffer.
              * @param[in]	usage					Determines for what purpose is the resource being registered for.
              */
-            void registerResource(VulkanImage* res, const VkImageSubresourceRange& range, VkImageLayout newLayout,
+            void registerResource(irr::video::VulkanImage* res, const VkImageSubresourceRange& range, VkImageLayout newLayout,
                 VkImageLayout finalLayout, VulkanUseFlag flags, ResourceUsage usage);
 
             /**
              * Lets the command buffer know that the provided image resource has been queued on it, and will be used by the
              * device when the command buffer is submitted. Assumes the image is in its optimal layout.
              */
-            void registerResource(VulkanImage* res, const VkImageSubresourceRange& range, VulkanUseFlag flags,
+            void registerResource(irr::video::VulkanImage* res, const VkImageSubresourceRange& range, VulkanUseFlag flags,
                 ResourceUsage usage);
 
             /**
              * Lets the command buffer know that the provided image resource has been queued on it, and will be used by the
              * device when the command buffer is submitted.
              */
-            void registerResource(VulkanBuffer* res, VkAccessFlags accessFlags, VulkanUseFlag flags);
+            void registerResource(irr::video::VulkanBuffer* res, VkAccessFlags accessFlags, VulkanUseFlag flags);
 
             /**
              * Lets the command buffer know that the provided framebuffer resource has been queued on it, and will be used by
              * the device when the command buffer is submitted.
              */
-            void registerResource(VulkanFramebuffer* res, RenderSurfaceMaskBits loadMask, uint32_t readMask);
+            void registerResource(irr::video::VulkanFramebuffer* res, RenderSurfaceMaskBits loadMask, uint32_t readMask);
 
             /** Notifies the command buffer that the provided query has been queued on it. */
-            void registerQuery(VulkanOcclusionQuery* query) { mOcclusionQueries.insert(query); }
+            void registerQuery(irr::video::VulkanOcclusionQuery* query) { mOcclusionQueries.insert(query); }
 
             /** Notifies the command buffer that the provided query has been queued on it. */
-            void registerQuery(VulkanTimerQuery* query) { mTimerQueries.insert(query); }
+            void registerQuery(irr::video::VulkanTimerQuery* query) { mTimerQueries.insert(query); }
 
             /************************************************************************/
             /* 								COMMANDS	                     		*/
@@ -286,19 +287,19 @@ namespace irr
             void setRenderTarget(const video::IRenderTarget* rt, uint32_t readOnlyFlags, RenderSurfaceMaskBits loadMask, bool LifeTimeBound);
 
             /** Clears the entirety currently bound render target. */
-            void clearRenderTarget(uint32_t buffers, const irr::video::SColor& color, float depth, UINT16 stencil, UINT8 targetMask);
+            void clearRenderTarget(uint32_t buffers, const irr::video::SColor& color, float depth, std::uint16_t stencil, std::uint8_t targetMask);
 
             /** Clears the viewport portion of the currently bound render target. */
-            void clearViewport(uint32_t buffers, const irr::video::SColor& color, float depth, UINT16 stencil, UINT8 targetMask);
+            void clearViewport(uint32_t buffers, const irr::video::SColor& color, float depth, std::uint16_t stencil, std::uint8_t targetMask);
 
             /** Assigns a pipeline state to use for subsequent draw commands. */
-            void setPipelineState(const VulkanGraphicsPipelineState* state);
+            void setPipelineState(const irr::video::VulkanGraphicsPipelineState* state);
 
             /** Assigns a pipeline state to use for subsequent dispatch commands. */
-            void setPipelineState(const VulkanComputePipelineState* state);
+            void setPipelineState(const irr::video::VulkanComputePipelineState* state);
 
             /** Assign GPU params to the GPU programs bound by the pipeline state. */
-            void setGpuParams(VulkanGpuParams* gpuParams);
+            void setGpuParams(irr::video::VulkanGpuParams* gpuParams);
 
             /** Sets the current viewport which determine to which portion of the render target to render to. */
             void setViewport(const irr::core::recti& area);
@@ -316,13 +317,13 @@ namespace irr
             void setDrawOp(scene::E_PRIMITIVE_TYPE drawOp);
 
             /** Sets one or multiple vertex buffers that will be used for subsequent draw() or drawIndexed() calls. */
-            void setVertexBuffers(uint32_t index, VulkanBuffer** buffers, uint32_t numBuffers, VkDeviceSize* offset);
+            void setVertexBuffers(uint32_t index, irr::video::VulkanBuffer** buffers, uint32_t numBuffers, VkDeviceSize* offset);
 
             /** Sets an index buffer that will be used for subsequent drawIndexed() calls. */
-            void setIndexBuffer(VulkanBuffer* buffer, E_INDEX_TYPE type, VkDeviceSize offset);
+            void setIndexBuffer(irr::video::VulkanBuffer* buffer, E_INDEX_TYPE type, VkDeviceSize offset);
 
             /** Sets a declaration that determines how are vertex buffer contents interpreted. */
-            void setVertexDeclaration(const CVulkanVertexDeclaration* decl);
+            void setVertexDeclaration(const irr::video::CVulkanVertexDeclaration* decl);
 
             /** Executes a draw command using the currently bound graphics pipeline, vertex buffer and render target. */
             void draw(uint32_t vertexOffset, uint32_t vertexCount, uint32_t instanceCount);
@@ -337,13 +338,13 @@ namespace irr
              * Registers a command that signals the event when executed. Will be delayed until the end of the current
              * render pass, if any.
              */
-            void setEvent(VulkanEvent* event);
+            void setEvent(irr::video::VulkanEvent* event);
 
             /**
              * Registers a command that resets the query. The command will be delayed until the next submit() if a render
              * pass is currently in progress, but is guaranteed to execute before this command buffer is submitted.
              */
-            void resetQuery(VulkanQuery* query);
+            void resetQuery(irr::video::VulkanQuery* query);
 
             /**
              * Issues a pipeline barrier on the provided buffer. See vkCmdPipelineBarrier in Vulkan spec. for usage
@@ -379,16 +380,16 @@ namespace irr
              *								in the case the image is used in the framebuffer, in which case the render pass
              *								may perform an automated layout transition when it begins.
              */
-            VkImageLayout getCurrentLayout(VulkanImage* image, const VkImageSubresourceRange& range, bool inRenderPass);
+            VkImageLayout getCurrentLayout(irr::video::VulkanImage* image, const VkImageSubresourceRange& range, bool inRenderPass);
 
-            VulkanGpuParams* getGpuParams() { return mBoundParams; }
+            irr::video::VulkanGpuParams* getGpuParams() { return mBoundParams; }
 
-            void setSwapChain(VulkanSwapChain* chain) { mSwapChains.push_back(chain); }
+            void setSwapChain(irr::video::VulkanSwapChain* chain) { mSwapChains.push_back(chain); }
 
         private:
             friend class VulkanCmdBufferPool;
             friend class VulkanCommandBuffer;
-            friend class VulkanQueue;
+            friend class irr::video::VulkanQueue;
 
             /** Checks if all the prerequisites for rendering have been made (e.g. render target and pipeline state are set.) */
             bool isReadyForRender();
@@ -410,7 +411,7 @@ namespace irr
             void bindGpuParams();
 
             /** Clears the specified area of the currently bound render target. */
-            void clearViewport(const core::recti& area, uint32_t buffers, const irr::video::SColor& color, float depth, UINT16 stencil, UINT8 targetMask);
+            void clearViewport(const core::recti& area, uint32_t buffers, const irr::video::SColor& color, float depth, std::uint16_t stencil, std::uint8_t targetMask);
 
             /** Starts and ends a render pass, intended only for a clear operation. */
             void executeClearPass();
@@ -428,14 +429,14 @@ namespace irr
              * Updates an existing sub-resource info range with new layout, use flags and framebuffer flag. Returns true if
              * the bound sub-resource is a read-only framebuffer attachment.
              */
-            bool updateSubresourceInfo(VulkanImage* image, uint32_t imageInfoIdx, ImageSubresourceInfo& subresourceInfo,
+            bool updateSubresourceInfo(irr::video::VulkanImage* image, uint32_t imageInfoIdx, ImageSubresourceInfo& subresourceInfo,
                 VkImageLayout newLayout, VkImageLayout finalLayout, VulkanUseFlag flags, ResourceUsage usage);
 
             /** Finds a subresource info structure containing the specified face and mip level of the provided image. */
-            ImageSubresourceInfo& findSubresourceInfo(VulkanImage* image, uint32_t face, uint32_t mip);
+            ImageSubresourceInfo& findSubresourceInfo(irr::video::VulkanImage* image, uint32_t face, uint32_t mip);
 
             /** Gets all queries registered on this command buffer that haven't been ended. */
-            void getInProgressQueries(std::vector<VulkanTimerQuery*>& timer, std::vector<VulkanOcclusionQuery*>& occlusion) const;
+            void getInProgressQueries(std::vector<irr::video::VulkanTimerQuery*>& timer, std::vector<irr::video::VulkanOcclusionQuery*>& occlusion) const;
 
             /** Returns the read mask for the current framebuffer. */
             RenderSurfaceMaskBits getFBReadMask();
@@ -443,35 +444,35 @@ namespace irr
             uint32_t mId;
             uint32_t mQueueFamily;
             State mState;
-            VulkanDevice& mDevice;
+            irr::video::VulkanDevice& mDevice;
             VkCommandPool mPool;
             VkCommandBuffer mCmdBuffer;
             VkFence mFence;
 
-            VulkanSemaphore* mIntraQueueSemaphore;
-            VulkanSemaphore* mInterQueueSemaphores[_MAX_VULKAN_CB_DEPENDENCIES];
+            irr::video::VulkanSemaphore* mIntraQueueSemaphore;
+            irr::video::VulkanSemaphore* mInterQueueSemaphores[_MAX_VULKAN_CB_DEPENDENCIES];
             mutable uint32_t mNumUsedInterQueueSemaphores;
 
-            VulkanPipeline* mPipeline;
-            VulkanFramebuffer* mFramebuffer;
+            irr::video::VulkanPipeline* mPipeline;
+            irr::video::VulkanFramebuffer* mFramebuffer;
             uint32_t mRenderTargetWidth;
             uint32_t mRenderTargetHeight;
             uint32_t mRenderTargetReadOnlyFlags;
             RenderSurfaceMaskBits mRenderTargetLoadMask;
 
-            std::vector<CVulkanDeviceResource*> mResources;
-            std::vector<CVulkanDeviceResource*> mImages;
-            std::vector<VulkanBuffer*> mBuffers;
-            std::set<VulkanOcclusionQuery*> mOcclusionQueries;
-            std::set<VulkanTimerQuery*> mTimerQueries;
+            std::vector<irr::video::CVulkanDeviceResource*> mResources;
+            std::vector<irr::video::CVulkanDeviceResource*> mImages;
+            std::vector<irr::video::VulkanBuffer*> mBuffers;
+            std::set<irr::video::VulkanOcclusionQuery*> mOcclusionQueries;
+            std::set<irr::video::VulkanTimerQuery*> mTimerQueries;
             //std::vector<ImageInfo> mImageInfos;
             //std::vector<ImageSubresourceInfo> mSubresourceInfoStorage;
             //std::set<uint32_t> mPassTouchedSubresourceInfos; // All subresource infos touched by the current render pass
             uint32_t mGlobalQueueIdx;
 
-            VulkanGraphicsPipelineState* mGraphicsPipeline;
-            VulkanComputePipelineState* mComputePipeline;
-            CVulkanVertexDeclaration* mVertexDecl;
+            irr::video::VulkanGraphicsPipelineState* mGraphicsPipeline;
+            irr::video::VulkanComputePipelineState* mComputePipeline;
+            irr::video::CVulkanVertexDeclaration* mVertexDecl;
             irr::core::recti mViewport;
             irr::core::recti mScissor;
             uint32_t mStencilRef;
@@ -485,13 +486,13 @@ namespace irr
             bool mBoundParamsDirty : 1;
             bool mPermanentFrameBuffer : 1;
             DescriptorSetBindFlag mDescriptorSetsBindState;
-            VulkanGpuParams* mBoundParams;
+            irr::video::VulkanGpuParams* mBoundParams;
 
             std::array<VkClearValue, _MAX_MULTIPLE_RENDER_TARGETS + 1> mClearValues;
             uint32_t mClearMask;
             irr::core::recti mClearArea;
 
-            std::vector<VulkanSemaphore*> mSemaphoresTemp;
+            std::vector<irr::video::VulkanSemaphore*> mSemaphoresTemp;
             VkViewport viewport;
             VkRect2D scissorRect;
             VkBuffer mVertexBuffersTemp[_MAX_BOUND_VERTEX_BUFFERS];
@@ -499,17 +500,17 @@ namespace irr
             VkDescriptorSet* mDescriptorSetsTemp;
             std::map<uint32_t, TransitionInfo> mTransitionInfoTemp;
             std::vector<VkImageMemoryBarrier> mLayoutTransitionBarriersTemp;
-            std::vector<VulkanImage*> mQueuedLayoutTransitions;
-            std::vector<VulkanEvent*> mQueuedEvents;
-            std::vector<VulkanQuery*> mQueuedQueryResets;
-            std::vector < VulkanSwapChain* > mSwapChains;
+            std::vector<irr::video::VulkanImage*> mQueuedLayoutTransitions;
+            std::vector<irr::video::VulkanEvent*> mQueuedEvents;
+            std::vector<irr::video::VulkanQuery*> mQueuedQueryResets;
+            std::vector < irr::video::VulkanSwapChain* > mSwapChains;
         };
 
         /** CommandBuffer implementation for Vulkan. */
         class VulkanCommandBuffer : public CommandBuffer
         {
         public:
-            VulkanCommandBuffer(CVulkanDriver* device, GpuQueueType type, uint32_t deviceIdx, uint32_t queueIdx, bool secondary);
+            VulkanCommandBuffer(irr::video::CVulkanDriver* device, irr::video::GpuQueueType type, uint32_t deviceIdx, uint32_t queueIdx, bool secondary);
             virtual ~VulkanCommandBuffer();
 
             /**
@@ -526,7 +527,7 @@ namespace irr
              * @note	This buffer will change after a submit() call.
              */
             VulkanCmdBuffer* getInternal() const { return mBuffer; }
-            CVulkanDriver* GetDriver() { return &mDevice; }
+            irr::video::CVulkanDriver* GetDriver() { return &mDevice; }
 
         private:
             /**
@@ -536,12 +537,12 @@ namespace irr
             void acquireNewBuffer();
 
             VulkanCmdBuffer* mBuffer;
-            CVulkanDriver& mDevice;
-            VulkanQueue* mQueue;
+            irr::video::CVulkanDriver& mDevice;
+            irr::video::VulkanQueue* mQueue;
             uint32_t mIdMask;
 
-            std::vector<VulkanTimerQuery*> mcacheTimerQueries;
-            std::vector<VulkanOcclusionQuery*> mcacheOcclusionQueries;
+            std::vector<irr::video::VulkanTimerQuery*> mcacheTimerQueries;
+            std::vector<irr::video::VulkanOcclusionQuery*> mcacheOcclusionQueries;
         };
 
         /** Wrapper around a command buffer used specifically for transfer operations. */
@@ -549,7 +550,7 @@ namespace irr
         {
         public:
             VulkanTransferBuffer();
-            VulkanTransferBuffer(VulkanDevice* device, GpuQueueType type, u32 queueIdx);
+            VulkanTransferBuffer(irr::video::VulkanDevice* device, irr::video::GpuQueueType type, u32 queueIdx);
             ~VulkanTransferBuffer();
 
             /**
@@ -581,7 +582,7 @@ namespace irr
             * Automatically determines original layout for individual sub-resources, groups the pipeline barriers and issues
             * them.
             */
-            void setLayout(VulkanImage* image, const VkImageSubresourceRange& range, VkAccessFlags newAccessMask,
+            void setLayout(irr::video::VulkanImage* image, const VkImageSubresourceRange& range, VkAccessFlags newAccessMask,
                 VkImageLayout newLayout);
 
             /**
@@ -595,15 +596,15 @@ namespace irr
             /** Returns the internal command buffer. */
             VulkanCmdBuffer* getCB() const { return mCB; }
         private:
-            friend class VulkanDevice;
+            friend class irr::video::VulkanDevice;
 
             /** Allocates a new internal command buffer. */
             void allocate();
 
-            VulkanDevice* mDevice;
-            GpuQueueType mType;
+            irr::video::VulkanDevice* mDevice;
+            irr::video::GpuQueueType mType;
             u32 mQueueIdx;
-            VulkanQueue* mQueue;
+            irr::video::VulkanQueue* mQueue;
             u32 mQueueMask;
 
             VulkanCmdBuffer* mCB;

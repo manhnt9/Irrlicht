@@ -58,7 +58,7 @@ namespace irr
 
         #ifdef _IRR_COMPILE_WITH_VULKAN_
         IVideoDriver* createVulkanDriver(const SIrrlichtCreationParameters& params,
-            io::IFileSystem* io, HWND hwnd);
+            io::IFileSystem* io, IrrlichtDevice* device);
         #endif
     }
 } // end namespace irr
@@ -1429,7 +1429,7 @@ void CIrrDeviceWin32::createDriver()
     case video::EDT_VULKAN:
         #ifdef _IRR_COMPILE_WITH_VULKAN_
 
-        VideoDriver = video::createVulkanDriver(CreationParams, FileSystem, HWnd);
+        VideoDriver = video::createVulkanDriver(CreationParams, FileSystem, this);
 
         if ( !VideoDriver )
         {

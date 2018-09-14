@@ -22,10 +22,11 @@
 #define DEVEL_LOG(msg,code)	os::Printer::log(msg, code)	
 #endif
 
-#define VULKAN_DEBUG_MODE 0
+#define VULKAN_DEBUG_MODE 1
 
 namespace irr
 {
+    class IrrlichtDevice;
     namespace video
     {
         class CVulkanFixedFunctionMaterialRenderer;
@@ -140,9 +141,9 @@ namespace irr
                 E_VERTEX_TYPE vType, scene::E_PRIMITIVE_TYPE pType,
                 E_INDEX_TYPE iType);
 
-            //! initialises the Direct3D API
-            bool initDriver(HWND hwnd, bool pureSoftware);
-            bool initOutput(HWND hwnd, bool pureSoftware);
+            //! initialises Vulkan API
+            bool initDriver(IrrlichtDevice* device, bool pureSoftware);
+            bool initOutput(bool pureSoftware);
 
             //! \return Returns the name of the video driver. Example: In case of the DIRECT3D8
             //! driver, it would return "Direct3D8.1".
@@ -347,7 +348,7 @@ namespace irr
 
         private:
 
-            void initialize();
+            void initialize(IrrlichtDevice* device);
 
             SMaterial Material, LastMaterial;
             IImage* blankImage = nullptr;

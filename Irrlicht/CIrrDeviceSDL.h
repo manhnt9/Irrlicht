@@ -16,8 +16,8 @@
 #include "IImagePresenter.h"
 #include "ICursorControl.h"
 
-#include <SDL/SDL.h>
-#include <SDL/SDL_syswm.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
 
 namespace irr
 {
@@ -92,6 +92,8 @@ namespace irr
 				return EIDT_SDL;
 		}
 
+		SDL_Window* getSDLWindow() { return Window; }
+
 		//! Implementation of the linux cursor control
 		class CCursorControl : public gui::ICursorControl
 		{
@@ -139,7 +141,7 @@ namespace irr
 			//! Sets the new position of the cursor.
 			virtual void setPosition(s32 x, s32 y)
 			{
-				SDL_WarpMouse( x, y );
+				SDL_WarpMouseGlobal(x, y);
 			}
 
 			//! Returns the current position of the mouse cursor.
@@ -226,6 +228,7 @@ namespace irr
 
 		core::array<SKeyMap> KeyMap;
 		SDL_SysWMinfo Info;
+		SDL_Window* Window;
 	};
 
 } // end namespace irr

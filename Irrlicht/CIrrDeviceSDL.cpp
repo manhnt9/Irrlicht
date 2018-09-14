@@ -17,8 +17,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "SIrrCreationParameters.h"
-#include <SDL/SDL_syswm.h>
-#include <SDL/SDL_video.h>
+#include <SDL2/SDL_syswm.h>
+#include <SDL2/SDL_video.h>
 
 #ifdef _MSC_VER
 #pragma comment(lib, "SDL.lib")
@@ -43,6 +43,11 @@ namespace irr
 		IVideoDriver* createOpenGLDriver(const SIrrlichtCreationParameters& params,
 				io::IFileSystem* io, CIrrDeviceSDL* device);
 		#endif
+
+		#ifdef _IRR_COMPILE_WITH_VULKAN_
+		IVideoDriver* createVulkanDriver(const SIrrlichtCreationParameters& params,
+				io::IFileSystem* io, IrrlichtDevice* device);
+		#endif
 	} // end namespace video
 
 } // end namespace irr
@@ -54,7 +59,7 @@ namespace irr
 //! constructor
 CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 	: CIrrDeviceStub(param),
-	Screen((SDL_Surface*)param.WindowId), SDL_Flags(SDL_ANYFORMAT),
+	Screen((SDL_Surface*)param.WindowId), SDL_Flags(0),
 	MouseX(0), MouseY(0), MouseButtonStates(0),
 	Width(param.WindowSize.Width), Height(param.WindowSize.Height),
 	Resizable(false), WindowHasFocus(false), WindowMinimized(false)
@@ -76,17 +81,17 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 	}
 
 #if defined(_IRR_WINDOWS_)
-	SDL_putenv("SDL_VIDEODRIVER=directx");
+	SDL_setenv("SDL_VIDEODRIVER", "directx", 1);
 #elif defined(_IRR_OSX_PLATFORM_)
-	SDL_putenv("SDL_VIDEODRIVER=Quartz");
+	SDL_putenv("SDL_VIDEODRIVER", "Quartz", 1);
 #else
-	SDL_putenv("SDL_VIDEODRIVER=x11");
+	SDL_setenv("SDL_VIDEODRIVER", "x11", 1);
 #endif
 //	SDL_putenv("SDL_WINDOWID=");
 
 	SDL_VERSION(&Info.version);
 
-	SDL_GetWMInfo(&Info);
+	SDL_GetWindowWMInfo(Window, &Info);
 	core::stringc sdlversion = "SDL Version ";
 	sdlversion += Info.version.major;
 	sdlversion += ".";
@@ -100,16 +105,17 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 	// create keymap
 	createKeyMap();
 	// enable key to character translation
+	// FIXME(manh): enable unicode in SDL2
+	/*
 	SDL_EnableUNICODE(1);
 
 	(void)SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-
+	*/
 	if ( CreationParams.Fullscreen )
-		SDL_Flags |= SDL_FULLSCREEN;
+		SDL_Flags |= SDL_WINDOW_FULLSCREEN;
 	if (CreationParams.DriverType == video::EDT_OPENGL)
-		SDL_Flags |= SDL_OPENGL;
-	else if (CreationParams.Doublebuffer)
-		SDL_Flags |= SDL_DOUBLEBUF;
+		SDL_Flags |= SDL_WINDOW_OPENGL;
+
 	// create window
 	if (CreationParams.DriverType != video::EDT_NULL)
 	{
@@ -144,6 +150,17 @@ bool CIrrDeviceSDL::createWindow()
 {
 	if ( Close )
 		return false;
+
+	Window = SDL_CreateWindow(
+    "",
+    SDL_WINDOWPOS_CENTERED,
+    SDL_WINDOWPOS_CENTERED,
+    Width,
+    Height,
+    SDL_Flags
+ 	);
+	return true;
+	/*
 
 	if (CreationParams.DriverType == video::EDT_OPENGL)
 	{
@@ -210,6 +227,7 @@ bool CIrrDeviceSDL::createWindow()
 	}
 
 	return true;
+	*/
 }
 
 
@@ -270,6 +288,21 @@ void CIrrDeviceSDL::createDriver()
 		#endif
 		break;
 
+	case video::EDT_VULKAN:
+		#ifdef _IRR_COMPILE_WITH_VULKAN_
+
+		VideoDriver = video::createVulkanDriver(CreationParams, FileSystem, this);
+
+		if ( !VideoDriver )
+		{
+			os::Printer::log("Could not create Vulkan Driver.", ELL_ERROR);
+		}
+		#else
+		os::Printer::log("Vulkan Driver was not compiled in. Try another one.", ELL_ERROR);
+		#endif
+
+		break;
+
 	case video::EDT_NULL:
 		VideoDriver = video::createNullDriver(FileSystem, CreationParams.WindowSize);
 		break;
@@ -291,6 +324,7 @@ bool CIrrDeviceSDL::run()
 
 	while ( !Close && SDL_PollEvent( &SDL_event ) )
 	{
+		/*
 		switch ( SDL_event.type )
 		{
 		case SDL_MOUSEMOTION:
@@ -453,7 +487,7 @@ bool CIrrDeviceSDL::run()
 		default:
 			break;
 		} // end switch
-
+	*/
 	} // end while
 
 #if defined(_IRR_COMPILE_WITH_JOYSTICK_EVENTS_)
@@ -559,7 +593,7 @@ bool CIrrDeviceSDL::activateJoysticks(core::array<SJoystickInfo> & joystickInfo)
 		info.Joystick = joystick;
 		info.Axes = SDL_JoystickNumAxes(Joysticks[joystick]);
 		info.Buttons = SDL_JoystickNumButtons(Joysticks[joystick]);
-		info.Name = SDL_JoystickName(joystick);
+		info.Name = SDL_JoystickName(Joysticks[joystick]);
 		info.PovHat = (SDL_JoystickNumHats(Joysticks[joystick]) > 0)
 						? SJoystickInfo::POV_HAT_PRESENT : SJoystickInfo::POV_HAT_ABSENT;
 
@@ -609,20 +643,22 @@ void CIrrDeviceSDL::sleep(u32 timeMs, bool pauseTimer)
 void CIrrDeviceSDL::setWindowCaption(const wchar_t* text)
 {
 	core::stringc textc = text;
-	SDL_WM_SetCaption( textc.c_str( ), textc.c_str( ) );
+	SDL_SetWindowTitle(Window, textc.c_str());
 }
 
 
 //! presents a surface in the client area
 bool CIrrDeviceSDL::present(video::IImage* surface, void* windowId, core::rect<s32>* srcClip)
 {
+	/*
 	SDL_Surface *sdlSurface = SDL_CreateRGBSurfaceFrom(
 			surface->lock(), surface->getDimension().Width, surface->getDimension().Height,
 			surface->getBitsPerPixel(), surface->getPitch(),
 			surface->getRedMask(), surface->getGreenMask(), surface->getBlueMask(), surface->getAlphaMask());
 	if (!sdlSurface)
 		return false;
-	SDL_SetAlpha(sdlSurface, 0, 0);
+	// FIXME(manh): set alpha for SDL2 surface
+	// SDL_SetAlpha(sdlSurface, 0, 0);
 	SDL_SetColorKey(sdlSurface, 0, 0);
 	sdlSurface->format->BitsPerPixel=surface->getBitsPerPixel();
 	sdlSurface->format->BytesPerPixel=surface->getBytesPerPixel();
@@ -691,6 +727,7 @@ bool CIrrDeviceSDL::present(video::IImage* surface, void* windowId, core::rect<s
 	SDL_FreeSurface(sdlSurface);
 	surface->unlock();
 	return (scr != 0);
+	*/
 }
 
 
@@ -704,6 +741,8 @@ void CIrrDeviceSDL::closeDevice()
 //! \return Pointer to a list with all video modes supported
 video::IVideoModeList* CIrrDeviceSDL::getVideoModeList()
 {
+	// FIXME(manh): get video mode list
+	/*
 	if (!VideoModeList->getVideoModeCount())
 	{
 		// enumerate video modes.
@@ -722,12 +761,15 @@ video::IVideoModeList* CIrrDeviceSDL::getVideoModeList()
 	}
 
 	return VideoModeList;
+	*/
 }
 
 
 //! Sets if the window should be resizable in windowed mode.
 void CIrrDeviceSDL::setResizable(bool resize)
 {
+	// FIXME(manh): set resizeable
+	/*
 	if (resize != Resizable)
 	{
 		if (resize)
@@ -737,13 +779,14 @@ void CIrrDeviceSDL::setResizable(bool resize)
 		Screen = SDL_SetVideoMode( 0, 0, 0, SDL_Flags );
 		Resizable = resize;
 	}
+	*/
 }
 
 
 //! Minimizes window if possible
 void CIrrDeviceSDL::minimizeWindow()
 {
-	SDL_WM_IconifyWindow();
+	SDL_MinimizeWindow(Window);
 }
 
 
@@ -828,6 +871,7 @@ video::ECOLOR_FORMAT CIrrDeviceSDL::getColorFormat() const
 
 void CIrrDeviceSDL::createKeyMap()
 {
+	/*
 	// I don't know if this is the best method  to create
 	// the lookuptable, but I'll leave it like that until
 	// I find a better version.
@@ -965,6 +1009,7 @@ void CIrrDeviceSDL::createKeyMap()
 	// some special keys missing
 
 	KeyMap.sort();
+	*/
 }
 
 } // end namespace irr

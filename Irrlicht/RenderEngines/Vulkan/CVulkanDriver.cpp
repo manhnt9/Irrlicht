@@ -1,6 +1,8 @@
 #include "CVulkanDriver.h"
 #if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
 #include "ContextManager/CWinPlatform.h"
+#elif defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
+#include "ContextManager/CSDLPlatform.h"
 #endif
 #include "CVulkanVertexDeclaration.h"
 #include "CVulkanHardwareBuffer.h"
@@ -255,7 +257,7 @@ VulkanSwapChain * irr::video::CVulkanDriver::_getSwapChain()
     return mPlatform->GetSwapChain();
 }
 
-void irr::video::CVulkanDriver::initialize()
+void irr::video::CVulkanDriver::initialize(IrrlichtDevice* device)
 {
     // Create instance
     VkApplicationInfo appInfo;
@@ -379,11 +381,15 @@ void irr::video::CVulkanDriver::initialize()
     mPlatform = new CAndroidVulkanPlatform(this);
 #elif defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
     mPlatform = new CMacVulkanPlatform(this);
-#else
-    mPlatform = new CLinuxVulkanPlatform(this);
+#elif defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
+    mPlatform = new CSDLVulkanPlatform(this);
 #endif
 
+#ifdef _IRR_COMPILE_WITH_SDL_DEVICE_
+    static_cast<CSDLVulkanPlatform*>(mPlatform)->initialize(device);
+#else
     mPlatform->initialize();
+#endif
 
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     //GetVendorStringByID(_getPrimaryDevice()->getDeviceProperties().vendorID);
@@ -391,11 +397,11 @@ void irr::video::CVulkanDriver::initialize()
     DriverAndFeatureName += converter.from_bytes(_getPrimaryDevice()->getDeviceProperties().deviceName);
 }
 
-bool irr::video::CVulkanDriver::initDriver(HWND hwnd, bool pureSoftware)
+bool irr::video::CVulkanDriver::initDriver(IrrlichtDevice* device, bool pureSoftware)
 {
     CNullDriver::initDriver();
 
-    initialize();
+    initialize(device);
     glslang::InitProcess();
     ShInitialize();
     ShInitialize();  // also test reference counting of users
@@ -1121,7 +1127,7 @@ void irr::video::CVulkanDriver::draw2DVertexPrimitiveList(const void * vertices,
             vType, pType, iType, false);
 }
 
-bool irr::video::CVulkanDriver::initOutput(HWND hwnd, bool pureSoftware)
+bool irr::video::CVulkanDriver::initOutput(bool pureSoftware)
 {
     return false;
 }
@@ -1638,9 +1644,10 @@ IShader * irr::video::CVulkanDriver::createShader(ShaderInitializerEntry * shade
     for (auto cbEntry : shaderCreateInfo->Callback)
     {
         auto buffer = gpuProgram->getConstantBufferByName(cbEntry.first.c_str());
-        if (buffer)
+        if (buffer) {
             buffer->setShaderDataCallback(cbEntry.second);
-        cbEntry.second->OnPrepare(buffer);
+            cbEntry.second->OnPrepare(buffer);
+        }
     }
 
     gpuProgram->Init();
@@ -1748,7 +1755,7 @@ void irr::video::CVulkanDriver::setRenderStates2DMode(bool alpha, bool texture, 
         setTransform(ETS_WORLD, m);
 
         // Set view to translate a little forward
-        //m.setTranslation(core::vector3df(-0.5f, -0.5f, 0)ü);
+        //m.setTranslation(core::vector3df(-0.5f, -0.5f, 0));
         setTransform(ETS_VIEW, getTransform(ETS_VIEW_2D));
 
         // Adjust projection
@@ -1883,11 +1890,11 @@ namespace irr
     {
         //! creates a video driver
         IVideoDriver* createVulkanDriver(const SIrrlichtCreationParameters& params,
-            io::IFileSystem* io, HWND hwnd)
+            io::IFileSystem* io, IrrlichtDevice* device)
         {
             bool pureSoftware = false;
             CVulkanDriver* driver = new CVulkanDriver(params, io);
-            if (!driver->initDriver(hwnd, pureSoftware))
+            if (!driver->initDriver(device, pureSoftware))
             {
                 driver->drop();
                 driver = 0;
