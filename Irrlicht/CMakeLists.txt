@@ -55,6 +55,8 @@ list(APPEND IrrLicht_source
 	${IrrLicht_render}
 )
 
+set(IRR_USE_SDL_DEVICE 0 CACHE STRING "0")
+
 if (SDL2_FOUND)
 if (IRR_USE_SDL_DEVICE EQUAL 1)
   add_definitions(-D_IRR_COMPILE_WITH_SDL_DEVICE_)
