@@ -1,6 +1,10 @@
 include(HlslUtils)
 
+if (MSVC)
 set(_IRR_DYNAMIC_ false)
+else()
+set(_IRR_DYNAMIC_ true)
+endif()
 
 if(_IRR_DYNAMIC_)
   set(LIBTYPE SHARED)

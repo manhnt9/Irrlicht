@@ -122,7 +122,7 @@ int main()
 	dimensions, etc.
 	*/
 	IrrlichtDevice *device =
-		createDevice( video::EDT_VULKAN, dimension2d<u32>(1280, 720), 16,
+		createDevice( video::EDT_DIRECT3D11, dimension2d<u32>(1280, 720), 16,
 			false, false, false, 0);
 
 	if (!device)
