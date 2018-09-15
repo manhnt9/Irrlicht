@@ -16,6 +16,7 @@ find_package(PCHSupport)
 # Render Systems
 #######################################################################
 
+find_package(SDL2)
 find_package(OpenGL) # Use Build in
 find_package(DirectX)
 find_package(DirectX11)

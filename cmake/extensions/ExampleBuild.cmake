@@ -1,6 +1,6 @@
 # The ZLIB license
 #
-# Copyright (c) 2015 André Netzeband
+# Copyright (c) 2015 AndrÃ© Netzeband
 #
 # This software is provided 'as-is', without any express or implied
 # warranty. In no event will the authors be held liable for any damages
@@ -36,7 +36,14 @@ FUNCTION(BUILD_APP_GENERIC APP_NAME APP_SOURCE_FILES APP_HEADER_FILES APP_INSTAL
 
     list(APPEND EXECUTABLE_LINK_LIBS
         irrlicht
+        freetype
     )
+
+    if (IRR_USE_SDL_DEVICE EQUAL 1)
+        list(APPEND EXECUTABLE_LINK_LIBS
+        SDL2
+    )
+    endif()
 
     list(APPEND EXECUTABLE_SRCS
         ${APP_SOURCE_FILES}
