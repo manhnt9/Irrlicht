@@ -104,15 +104,17 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 
 	// create keymap
 	createKeyMap();
-	// enable key to character translation
-	// FIXME(manh): enable unicode in SDL2
-	/*
-	SDL_EnableUNICODE(1);
 
-	(void)SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-	*/
-	if ( CreationParams.Fullscreen )
-		SDL_Flags |= SDL_WINDOW_FULLSCREEN;
+    // manh: Hanlde SDL_TEXTINPUT event for unicode instead of keydown
+    // SDL_EnableUNICODE(1); // deprecated
+    // manh: SDL2 enables key repeat by default and has a field to check that
+    // https://wiki.libsdl.org/SDL_KeyboardEvent
+    // (void)SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+
+    if ( CreationParams.Fullscreen )
+        SDL_Flags |= SDL_WINDOW_FULLSCREEN;
+    if ( CreationParams.Fullscreen == false)
+        SDL_Flags |= SDL_WINDOW_RESIZABLE;
 	if (CreationParams.DriverType == video::EDT_OPENGL)
 		SDL_Flags |= SDL_WINDOW_OPENGL;
 
@@ -159,7 +161,11 @@ bool CIrrDeviceSDL::createWindow()
     Height,
     SDL_Flags
  	);
-	return true;
+
+    if (Window == nullptr)
+        return false;
+    else
+        return true;
 	/*
 
 	if (CreationParams.DriverType == video::EDT_OPENGL)
@@ -321,22 +327,24 @@ bool CIrrDeviceSDL::run()
 
 	SEvent irrevent;
 	SDL_Event SDL_event;
+    SDL_StartTextInput();
 
-	while ( !Close && SDL_PollEvent( &SDL_event ) )
-	{
-		/*
-		switch ( SDL_event.type )
+    while ( !Close && SDL_PollEvent( &SDL_event ) )
+    {
+        switch ( SDL_event.type )
 		{
 		case SDL_MOUSEMOTION:
 			irrevent.EventType = irr::EET_MOUSE_INPUT_EVENT;
-			irrevent.MouseInput.Event = irr::EMIE_MOUSE_MOVED;
-			MouseX = irrevent.MouseInput.X = SDL_event.motion.x;
-			MouseY = irrevent.MouseInput.Y = SDL_event.motion.y;
+            irrevent.MouseInput.Event = irr::EMIE_MOUSE_MOVED;
+            SDL_GetGlobalMouseState(&MouseX, &MouseY);
+            irrevent.MouseInput.X = MouseX;
+            irrevent.MouseInput.Y = MouseY;
 			irrevent.MouseInput.ButtonStates = MouseButtonStates;
 
 			postEventFromUser(irrevent);
 			break;
 
+        case SDL_MOUSEWHEEL:
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
 
@@ -386,17 +394,18 @@ bool CIrrDeviceSDL::run()
 					MouseButtonStates &= !irr::EMBSM_MIDDLE;
 				}
 				break;
+            }
 
-			case SDL_BUTTON_WHEELUP:
-				irrevent.MouseInput.Event = irr::EMIE_MOUSE_WHEEL;
-				irrevent.MouseInput.Wheel = 1.0f;
-				break;
-
-			case SDL_BUTTON_WHEELDOWN:
-				irrevent.MouseInput.Event = irr::EMIE_MOUSE_WHEEL;
-				irrevent.MouseInput.Wheel = -1.0f;
-				break;
-			}
+            if (SDL_event.type == SDL_MOUSEWHEEL) {
+              irrevent.MouseInput.Event = irr::EMIE_MOUSE_WHEEL;
+              if (SDL_event.wheel.y > 0) // scroll up
+              {
+                  irrevent.MouseInput.Wheel = 1.0f;
+              } else if(SDL_event.wheel.y < 0) // scroll down
+              {
+                  irrevent.MouseInput.Wheel = -1.0f;
+              }
+            }
 
 			irrevent.MouseInput.ButtonStates = MouseButtonStates;
 
@@ -419,7 +428,7 @@ bool CIrrDeviceSDL::run()
 					}
 				}
 			}
-			break;
+            break;
 
 		case SDL_KEYDOWN:
 		case SDL_KEYUP:
@@ -443,38 +452,50 @@ bool CIrrDeviceSDL::run()
 				}
 #endif
 				irrevent.EventType = irr::EET_KEY_INPUT_EVENT;
-				irrevent.KeyInput.Char = SDL_event.key.keysym.unicode;
+                irrevent.KeyInput.Char = SDL_event.key.keysym.sym; // FIXME(manh): fix character input
 				irrevent.KeyInput.Key = key;
 				irrevent.KeyInput.PressedDown = (SDL_event.type == SDL_KEYDOWN);
 				irrevent.KeyInput.Shift = (SDL_event.key.keysym.mod & KMOD_SHIFT) != 0;
 				irrevent.KeyInput.Control = (SDL_event.key.keysym.mod & KMOD_CTRL ) != 0;
 				postEventFromUser(irrevent);
 			}
-			break;
+            break;
 
-		case SDL_QUIT:
+        case SDL_TEXTINPUT:
+          {
+              // TODO(manh): handle text input
+          }
+          break;
+
+        case SDL_QUIT:
 			Close = true;
 			break;
 
-		case SDL_ACTIVEEVENT:
-			if ((SDL_event.active.state == SDL_APPMOUSEFOCUS) ||
-					(SDL_event.active.state == SDL_APPINPUTFOCUS))
-				WindowHasFocus = (SDL_event.active.gain==1);
-			else
-			if (SDL_event.active.state == SDL_APPACTIVE)
-				WindowMinimized = (SDL_event.active.gain!=1);
-			break;
+        case SDL_WINDOWEVENT:
+          {
+            if (SDL_event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+                WindowHasFocus = true;
+            if (SDL_event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+                WindowHasFocus = false;
+            else if (SDL_event.window.event == SDL_WINDOWEVENT_MINIMIZED)
+                WindowMinimized = true;
+            else if (SDL_event.window.event == SDL_WINDOWEVENT_RESTORED)
+                WindowMinimized = false;
+            else if (SDL_event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            {
+                if ((SDL_event.window.data1 != (int)Width) || (SDL_event.window.data2 != (int)Height))
+                {
+                    Width = SDL_event.window.data1;
+                    Height = SDL_event.window.data2;
+//                    Screen = SDL_SetVideoMode( Width, Height, 0, SDL_Flags );
+                    SDL_SetWindowSize(Window, Width, Height);
+                    if (VideoDriver)
+                        VideoDriver->OnResize(core::dimension2d<u32>(Width, Height));
+                }
+            }
+          }
+          break;
 
-		case SDL_VIDEORESIZE:
-			if ((SDL_event.resize.w != (int)Width) || (SDL_event.resize.h != (int)Height))
-			{
-				Width = SDL_event.resize.w;
-				Height = SDL_event.resize.h;
-				Screen = SDL_SetVideoMode( Width, Height, 0, SDL_Flags );
-				if (VideoDriver)
-					VideoDriver->OnResize(core::dimension2d<u32>(Width, Height));
-			}
-			break;
 
 		case SDL_USEREVENT:
 			irrevent.EventType = irr::EET_USER_EVENT;
@@ -487,7 +508,6 @@ bool CIrrDeviceSDL::run()
 		default:
 			break;
 		} // end switch
-	*/
 	} // end while
 
 #if defined(_IRR_COMPILE_WITH_JOYSTICK_EVENTS_)
@@ -570,6 +590,7 @@ bool CIrrDeviceSDL::run()
 		}
 	}
 #endif
+    SDL_StopTextInput();
 	return !Close;
 }
 
@@ -871,7 +892,6 @@ video::ECOLOR_FORMAT CIrrDeviceSDL::getColorFormat() const
 
 void CIrrDeviceSDL::createKeyMap()
 {
-	/*
 	// I don't know if this is the best method  to create
 	// the lookuptable, but I'll leave it like that until
 	// I find a better version.
@@ -907,9 +927,9 @@ void CIrrDeviceSDL::createKeyMap()
 	KeyMap.push_back(SKeyMap(SDLK_DOWN, KEY_DOWN));
 
 	// select missing
-	KeyMap.push_back(SKeyMap(SDLK_PRINT, KEY_PRINT));
+    KeyMap.push_back(SKeyMap(SDLK_PRINTSCREEN, KEY_PRINT));
 	// execute missing
-	KeyMap.push_back(SKeyMap(SDLK_PRINT, KEY_SNAPSHOT));
+    KeyMap.push_back(SKeyMap(SDLK_PRINTSCREEN, KEY_SNAPSHOT));
 
 	KeyMap.push_back(SKeyMap(SDLK_INSERT, KEY_INSERT));
 	KeyMap.push_back(SKeyMap(SDLK_DELETE, KEY_DELETE));
@@ -953,21 +973,21 @@ void CIrrDeviceSDL::createKeyMap()
 	KeyMap.push_back(SKeyMap(SDLK_y, KEY_KEY_Y));
 	KeyMap.push_back(SKeyMap(SDLK_z, KEY_KEY_Z));
 
-	KeyMap.push_back(SKeyMap(SDLK_LSUPER, KEY_LWIN));
-	KeyMap.push_back(SKeyMap(SDLK_RSUPER, KEY_RWIN));
+    KeyMap.push_back(SKeyMap(SDLK_LGUI, KEY_LWIN));
+    KeyMap.push_back(SKeyMap(SDLK_RGUI, KEY_RWIN));
 	// apps missing
 	KeyMap.push_back(SKeyMap(SDLK_POWER, KEY_SLEEP)); //??
 
-	KeyMap.push_back(SKeyMap(SDLK_KP0, KEY_NUMPAD0));
-	KeyMap.push_back(SKeyMap(SDLK_KP1, KEY_NUMPAD1));
-	KeyMap.push_back(SKeyMap(SDLK_KP2, KEY_NUMPAD2));
-	KeyMap.push_back(SKeyMap(SDLK_KP3, KEY_NUMPAD3));
-	KeyMap.push_back(SKeyMap(SDLK_KP4, KEY_NUMPAD4));
-	KeyMap.push_back(SKeyMap(SDLK_KP5, KEY_NUMPAD5));
-	KeyMap.push_back(SKeyMap(SDLK_KP6, KEY_NUMPAD6));
-	KeyMap.push_back(SKeyMap(SDLK_KP7, KEY_NUMPAD7));
-	KeyMap.push_back(SKeyMap(SDLK_KP8, KEY_NUMPAD8));
-	KeyMap.push_back(SKeyMap(SDLK_KP9, KEY_NUMPAD9));
+    KeyMap.push_back(SKeyMap(SDLK_KP_0, KEY_NUMPAD0));
+    KeyMap.push_back(SKeyMap(SDLK_KP_1, KEY_NUMPAD1));
+    KeyMap.push_back(SKeyMap(SDLK_KP_2, KEY_NUMPAD2));
+    KeyMap.push_back(SKeyMap(SDLK_KP_3, KEY_NUMPAD3));
+    KeyMap.push_back(SKeyMap(SDLK_KP_4, KEY_NUMPAD4));
+    KeyMap.push_back(SKeyMap(SDLK_KP_5, KEY_NUMPAD5));
+    KeyMap.push_back(SKeyMap(SDLK_KP_6, KEY_NUMPAD6));
+    KeyMap.push_back(SKeyMap(SDLK_KP_7, KEY_NUMPAD7));
+    KeyMap.push_back(SKeyMap(SDLK_KP_8, KEY_NUMPAD8));
+    KeyMap.push_back(SKeyMap(SDLK_KP_9, KEY_NUMPAD9));
 	KeyMap.push_back(SKeyMap(SDLK_KP_MULTIPLY, KEY_MULTIPLY));
 	KeyMap.push_back(SKeyMap(SDLK_KP_PLUS, KEY_ADD));
 //	KeyMap.push_back(SKeyMap(SDLK_KP_, KEY_SEPARATOR));
@@ -992,8 +1012,8 @@ void CIrrDeviceSDL::createKeyMap()
 	KeyMap.push_back(SKeyMap(SDLK_F15, KEY_F15));
 	// no higher F-keys
 
-	KeyMap.push_back(SKeyMap(SDLK_NUMLOCK, KEY_NUMLOCK));
-	KeyMap.push_back(SKeyMap(SDLK_SCROLLOCK, KEY_SCROLL));
+    KeyMap.push_back(SKeyMap(SDLK_NUMLOCKCLEAR, KEY_NUMLOCK));
+    KeyMap.push_back(SKeyMap(SDLK_SCROLLLOCK, KEY_SCROLL));
 	KeyMap.push_back(SKeyMap(SDLK_LSHIFT, KEY_LSHIFT));
 	KeyMap.push_back(SKeyMap(SDLK_RSHIFT, KEY_RSHIFT));
 	KeyMap.push_back(SKeyMap(SDLK_LCTRL,  KEY_LCONTROL));
@@ -1009,7 +1029,6 @@ void CIrrDeviceSDL::createKeyMap()
 	// some special keys missing
 
 	KeyMap.sort();
-	*/
 }
 
 } // end namespace irr

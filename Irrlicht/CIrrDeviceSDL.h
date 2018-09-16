@@ -3,6 +3,7 @@
 // For conditions of distribution and use, see copyright notice in irrlicht.h
 // This device code is based on the original SDL device implementation
 // contributed by Shane Parker (sirshane).
+// ported to SDL2 by Manh NT(mant on irr forum - http://ntmanh.net).
 
 #ifndef __C_IRR_DEVICE_SDL_H_INCLUDED__
 #define __C_IRR_DEVICE_SDL_H_INCLUDED__
